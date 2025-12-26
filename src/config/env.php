@@ -11,6 +11,6 @@ define('ENV', [
     'TIMEZONE' => 'Asia/Jakarta',
     // MySQL session time zone. Use "+07:00" for WIB
     'DB_TIMEZONE' => '+07:00',
-    'REQUIRE_API_KEY' => true,
-    'API_KEY' => 'base64:1MoMxXbkcXefzFjyUbASvgKkczbMYlT83OL+wXJGaF8=',
+    'REQUIRE_API_KEY' => false,
+    'API_KEY' => 'dev-key',
 ]);
