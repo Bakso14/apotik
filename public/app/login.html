@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Masuk | SID Apotek</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <style>
+    :root{
+      --primary:#2563eb; --primary-600:#2563eb; --primary-700:#1d4ed8;
+      --bg:#eef2ff; --text:#0f172a; --muted:#6b7280; --border:#e5e7eb;
+      --rad:14px; --shadow:0 10px 30px rgba(2,6,23,.12);
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0; color:var(--text);}
+    .auth-wrap{min-height:100vh; display:grid; place-items:center; padding:24px; background:
+      radial-gradient(1200px 600px at 0% 0%, #dbeafe 0%, transparent 60%),
+      radial-gradient(1200px 600px at 100% 100%, #ede9fe 0%, transparent 60%),
+      linear-gradient(180deg,#f8fafc,#eef2ff);
+    }
+    .login-card{ width:min(920px,95vw); display:grid; grid-template-columns:1.1fr 1fr; gap:0; background:#fff; border:1px solid var(--border); border-radius:22px; box-shadow:var(--shadow); overflow:hidden; }
+    @media (max-width: 860px){ .login-card{ grid-template-columns: 1fr; } .promo{ display:none; } }
+    .promo{ background:linear-gradient(180deg,#0ea5e9,#0369a1); color:#fff; padding:26px 22px; display:flex; flex-direction:column; justify-content:space-between; }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.2px; }
+    .logo{ width:36px; height:36px; border-radius:10px; background:#fff; display:grid; place-items:center; color:#0369a1; font-weight:800; box-shadow: inset 0 0 0 1px rgba(3,105,161,.3); }
+    .promo h3{ margin:14px 0 8px; font-size:20px; }
+    .promo p{ margin:0; opacity:.92; }
+    .promo .bullets{ margin-top:14px; display:grid; gap:8px; font-size:13.5px; }
+    .promo .bullets span{ display:flex; align-items:center; gap:8px; }
+
+    .form-side{ padding:26px 24px; }
+    .title{ margin:0 0 4px; font-size:22px; font-weight:700; }
+    .subtitle{ margin:0 0 18px; color:var(--muted); font-size:13.5px; }
+    form{ display:grid; gap:12px; }
+    label{ font-size:12px; color:var(--muted); margin:0 0 6px; display:block; }
+    .field{ display:grid; gap:6px; }
+    .input{ position:relative; }
+    .input input{ width:100%; padding:10px 38px 10px 36px; min-height:40px; border:1px solid #cbd5e1; border-radius:12px; outline:0; font:inherit; transition:border-color .15s ease, box-shadow .15s ease; }
+    .input input:focus{ border-color:#93c5fd; box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+    .input .icon{ position:absolute; left:10px; top:50%; transform:translateY(-50%); width:18px; height:18px; opacity:.6; }
+    .toggle{ position:absolute; right:10px; top:50%; transform:translateY(-50%); background:transparent; border:none; cursor:pointer; color:#64748b; }
+    .row{ display:flex; align-items:center; justify-content:space-between; }
+    .btn{ background:var(--primary-600); color:#fff; border:none; padding:10px 12px; min-height:40px; border-radius:12px; cursor:pointer; font-weight:600; font-size:14px; width:100%; }
+    .btn:hover{ background:var(--primary-700); }
+    .btn[disabled]{ background:#94a3b8; cursor:not-allowed; }
+    .err{ color:#b42318; font-size:12.5px; min-height:18px; }
+    .foot{ margin-top:10px; font-size:12.5px; color:#64748b; text-align:center; }
+    .hint{ font-size:12px; color:#64748b; text-align:right; margin-top:6px; }
+  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%231d4ed8' stroke-width='1.3'%3E%3Crect x='3' y='3' width='18' height='18' rx='4'/%3E%3Cpath d='M8 12h8M12 8v8'/%3E%3C/g%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" referrerpolicy="no-referrer">
+  <meta name="color-scheme" content="light only">
+  <meta name="description" content="Masuk ke SID Apotek">
+  <meta name="robots" content="noindex, nofollow">
+  <style>html{color-scheme:light}</style>
+  
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="login-card">
+      <aside class="promo">
+        <div>
+          <div class="brand"><div class="logo">Rx</div> SID Apotek</div>
+          <h3>Kelola Apotek lebih cepat</h3>
+          <p>Stok, pembelian, penjualan, resep dan laporan — fokus pada keselamatan pasien.</p>
+          <div class="bullets">
+            <span><i class="fa-solid fa-bolt"></i> Cepat dan ringan</span>
+            <span><i class="fa-solid fa-shield-heart"></i> Validasi klinis dasar</span>
+            <span><i class="fa-solid fa-chart-line"></i> Laporan harian</span>
+          </div>
+        </div>
+        <div class="foot">© <span id="y"></span> SID Apotek</div>
+      </aside>
+      <section class="form-side">
+        <h1 class="title">Masuk</h1>
+        <p class="subtitle">Gunakan akun admin/kasir Anda untuk melanjutkan.</p>
+        <form id="fLogin">
+          <div class="field">
+            <label for="u">Username</label>
+            <div class="input">
+              <i class="fa-solid fa-user icon" aria-hidden="true"></i>
+              <input id="u" name="username" autocomplete="username" placeholder="mis. admin" required />
+            </div>
+          </div>
+          <div class="field">
+            <div class="row" style="justify-content:space-between; gap:8px;">
+              <label for="p" style="margin:0">Password</label>
+              <small class="hint">MD5 (server-side) — ubah di README</small>
+            </div>
+            <div class="input">
+              <i class="fa-solid fa-lock icon" aria-hidden="true"></i>
+              <input id="p" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required />
+              <button class="toggle" type="button" id="tgl" title="Tampilkan/Sembunyikan"><i class="fa-solid fa-eye"></i></button>
+            </div>
+          </div>
+          <div class="row" style="gap:8px; margin:2px 0 2px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none;">
+              <input type="checkbox" id="remember" /> Ingat saya
+            </label>
+            <span style="flex:1"></span>
+            <a href="#" style="font-size:12.5px; color:#2563eb; text-decoration:none" onclick="alert('Hubungi admin untuk reset password.');return false;">Lupa password?</a>
+          </div>
+          <button class="btn" id="login" type="submit">Masuk</button>
+          <div class="err" id="e" role="alert"></div>
+        </form>
+        <div class="foot">Versi UI ringan. Buka <code>/app/index.html</code> setelah login.</div>
+      </section>
+    </div>
+  </div>
+
+  <script src="./app.js?v=2"></script>
+  <script>
+    // Year
+    try{ document.getElementById('y').textContent = new Date().getFullYear(); }catch(e){}
+
+    // Prefill remembered username
+    (function(){
+      try {
+        const u = localStorage.getItem('last_username') || '';
+        const mem = localStorage.getItem('remember_me') === '1';
+        if(u){ const el = document.getElementById('u'); if(el) el.value = u; }
+        const chk = document.getElementById('remember'); if(chk) chk.checked = mem;
+      } catch(err){}
+    })();
+
+    // Toggle password visibility
+    (function(){
+      const p = document.getElementById('p'); const t = document.getElementById('tgl'); const ic = t && t.querySelector('i');
+      if(t && p){ t.addEventListener('click', ()=>{ const isPwd = p.type === 'password'; p.type = isPwd? 'text':'password'; if(ic){ ic.classList.toggle('fa-eye'); ic.classList.toggle('fa-eye-slash'); } p.focus(); }); }
+    })();
+
+    // Submit handling
+    document.getElementById('fLogin').addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      const btn = document.getElementById('login');
+      const eBox = document.getElementById('e');
+      eBox.textContent = '';
+      const u = document.getElementById('u').value.trim();
+      const p = document.getElementById('p').value;
+      if(!u || !p){ eBox.textContent = 'Username dan password wajib'; return; }
+      btn.disabled = true; const prev = btn.textContent; btn.textContent = 'Memproses…';
+      try{
+        const r = await fetchJSON(api('/api/login'), {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ username:u, password:p })
+        });
+        if(r.status>=400){
+          eBox.textContent = (r.data && (r.data.error||JSON.stringify(r.data))) || 'Gagal login';
+        } else {
+          // remember username
+          try{
+            const remember = document.getElementById('remember').checked;
+            if(remember){ localStorage.setItem('last_username', u); localStorage.setItem('remember_me','1'); }
+            else { localStorage.removeItem('last_username'); localStorage.setItem('remember_me','0'); }
+          }catch(err){}
+          location.href = './dashboard.html';
+        }
+      }catch(err){ eBox.textContent = 'Tidak dapat terhubung ke server'; }
+      finally { btn.disabled = false; btn.textContent = prev; }
+    });
+
+    // Focus first field
+    (function(){ try{ document.getElementById('u').focus(); }catch(e){} })();
+  </script>
+</body>
+</html>

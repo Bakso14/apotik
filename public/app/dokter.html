@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dokter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./admin.css?v=1">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-include="sidebar"></aside>
+    <main class="main">
+      <div class="topbar" data-include="header"></div>
+      <div class="content">
+        <h2 class="page-title">Dokter</h2>
+        <div class="cards cards-2">
+          <div class="card">
+            <h3>Daftar Dokter</h3>
+            <div class="table-tools">
+              <div class="search"><input placeholder="Filter tabel..." oninput="filterRows(this.value)"></div>
+              <div class="row" style="gap:8px;align-items:center">
+                <label>Limit <select id="limitDok"><option>10</option><option selected>20</option><option>50</option><option>100</option></select></label>
+                <div id="pagerDok" class="row" style="gap:6px"></div>
+              </div>
+            </div>
+            <table class="table">
+              <thead>
+                <tr><th>SIP</th><th>Nama</th><th>Spesialisasi</th><th>Aksi</th></tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Tambah Dokter</h3>
+            <form id="f">
+              <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+                <div><label>SIP</label><input name="sip" maxlength="100" placeholder="Kosongkan untuk otomatis"></div>
+                <div><label>Nama</label><input name="nama" required maxlength="150"></div>
+                <div style="grid-column:1/-1"><label>Spesialisasi</label><input name="spesialisasi" maxlength="150"></div>
+                <div style="grid-column:1/-1"><label>Faskes</label><input name="fasilitas_kesehatan" maxlength="150"></div>
+              </div>
+              <div class="row" style="margin-top:10px;">
+                <button class="btn" type="submit">Simpan</button>
+                <span class="error" id="err"></span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="./app.js?v=2"></script>
+  <script src="./include.js?v=1"></script>
+  <script>
+  window.SIDEBAR_ACTIVE = 'dokter';
+  (async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
+    let editingSIP=null;
+    let pageDok=1;
+    async function loadList(){
+      const lim=parseInt(document.getElementById('limitDok').value,10)||20;
+      const {data} = await fetchJSON(api(`/api/dokter?limit=${lim}&page=${pageDok}`));
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML='';
+      (data||[]).forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td><span class="pill">${p.sip}</span></td><td>${p.nama||''}</td><td>${p.spesialisasi||''}</td><td><div class="row" style="gap:6px;"><button class="btn btn-sm" data-act="edit">Edit</button><button class="btn btn-sm" data-act="del">Hapus</button></div></td>`;
+        tr.querySelector('[data-act=edit]').onclick=()=>startEdit(p);
+        tr.querySelector('[data-act=del]').onclick=()=>del(p.sip);
+        tbody.appendChild(tr);
+      });
+      renderPager();
+    }
+    function renderPager(){
+      const p=document.getElementById('pagerDok'); p.innerHTML='';
+      const prev=document.createElement('button'); prev.className='btn btn-sm'; prev.textContent='Prev'; prev.disabled=pageDok<=1; prev.onclick=()=>{ pageDok=Math.max(1,pageDok-1); loadList(); };
+      const next=document.createElement('button'); next.className='btn btn-sm'; next.textContent='Next'; next.onclick=()=>{ pageDok++; loadList(); };
+      const lab=document.createElement('span'); lab.style.margin='0 6px'; lab.textContent='Hal '+pageDok;
+      p.appendChild(prev); p.appendChild(lab); p.appendChild(next);
+    }
+    document.getElementById('limitDok').addEventListener('change',()=>{ pageDok=1; loadList(); });
+    function startEdit(p){
+      editingSIP=p.sip;
+      const f=document.getElementById('f');
+      f.sip.value=p.sip; f.sip.disabled=true; f.nama.value=p.nama||''; f.spesialisasi.value=p.spesialisasi||''; f.fasilitas_kesehatan.value=p.fasilitas_kesehatan||'';
+      f.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    async function del(sip){
+      if(!confirm('Hapus dokter '+sip+'?')) return;
+      const {status,data}=await fetchJSON(api('/api/dokter/'+encodeURIComponent(sip)),{method:'DELETE'});
+      if(status>=400){ alert((data&&(data.error||JSON.stringify(data.errors)))||'Gagal hapus'); }
+      else{ loadList(); }
+    }
+    const form=document.getElementById('f');
+    form.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const fd=new FormData(form);
+      const body=Object.fromEntries(fd.entries());
+      let res;
+      if(editingSIP){ res = await fetchJSON(api('/api/dokter/'+encodeURIComponent(editingSIP)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+      else{ res = await fetchJSON(api('/api/dokter'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+      const {status,data} = res;
+      if(status>=400){
+        document.getElementById('err').textContent=data&&data.errors?JSON.stringify(data.errors):(data&&data.error||'Gagal');
+      } else {
+        if(!editingSIP && data && data.sip){ alert('SIP dokter dibuat: '+data.sip); }
+        form.reset(); editingSIP=null; document.getElementById('err').textContent='';
+        document.getElementById('err').textContent='';
+        loadList();
+      }
+    });
+  function filterRows(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#rows tr').forEach(tr=>{ const t=tr.textContent.toLowerCase(); tr.style.display=t.includes(q)?'':'none'; }); }
+  loadList();
+  </script>
+</body>
+</html>

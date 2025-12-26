@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Formula Racik</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./admin.css?v=2">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" data-include="sidebar"></aside>
+    <main class="main">
+      <div class="topbar" data-include="header"></div>
+      <div class="content">
+        <h2 class="page-title">Formula Racik</h2>
+        <div class="cards cards-2">
+          <div class="card">
+            <h3>Daftar Formula</h3>
+            <div class="table-tools">
+              <div class="row" style="gap:8px;align-items:center">
+                <label>Limit <select id="limitFor"><option>10</option><option selected>20</option><option>50</option><option>100</option></select></label>
+                <div id="pagerFor" class="row" style="gap:6px"></div>
+              </div>
+            </div>
+      <table class="table">
+              <thead>
+        <tr><th>Kode</th><th>Nama</th><th>Dokter</th><th>Standar</th><th>Aksi</th></tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h3>Tambah Formula</h3>
+            <form id="f">
+              <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+        <div><label>Kode</label><input name="kode" placeholder="(kosongkan untuk otomatis)" maxlength="50"></div>
+                <div><label>Nama</label><input name="nama" required maxlength="150"></div>
+                <div><label>Dokter SIP</label><input name="dokter_sip" maxlength="100"></div>
+                <div><label>Standar</label><input type="checkbox" name="standar"></div>
+                <div style="grid-column:1/-1"><label>Petunjuk</label><input name="petunjuk" maxlength="255"></div>
+                <div style="grid-column:1/-1"><label>Komposisi (JSON)</label><textarea name="komposisi" rows="4" placeholder='[ {"obat_kode":"OB...","qty":1,"satuan":"tab"} ]'></textarea></div>
+              </div>
+              <div class="row" style="margin-top:10px;">
+                <button class="btn" type="submit">Simpan</button>
+                <span class="error" id="err"></span>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="./app.js?v=2"></script>
+  <script src="./include.js?v=1"></script>
+  <script>
+  window.SIDEBAR_ACTIVE = 'formula';
+  (async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
+    let pageFor=1;
+    async function loadList(){
+      const lim=parseInt(document.getElementById('limitFor').value,10)||20;
+      const {data} = await fetchJSON(api(`/api/formula?limit=${lim}&page=${pageFor}`));
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML='';
+      (data||[]).forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td><span class=\"pill\">${p.kode}</span></td><td>${p.nama||''}</td><td>${p.dokter_sip||''}</td><td>${p.standar? 'Ya':'-'}</td><td>
+          <button class=\"btn btn-sm\" data-act=\"edit\" data-k=\"${p.kode}\">Edit</button>
+          <button class=\"btn btn-sm danger\" data-act=\"del\" data-k=\"${p.kode}\">Hapus</button>
+        </td>`;
+        tbody.appendChild(tr);
+      });
+      renderPager();
+    }
+    function renderPager(){ const p=document.getElementById('pagerFor'); p.innerHTML=''; const prev=document.createElement('button'); prev.className='btn btn-sm'; prev.textContent='Prev'; prev.disabled=pageFor<=1; prev.onclick=()=>{ pageFor=Math.max(1,pageFor-1); loadList(); }; const next=document.createElement('button'); next.className='btn btn-sm'; next.textContent='Next'; next.onclick=()=>{ pageFor++; loadList(); }; const lab=document.createElement('span'); lab.style.margin='0 6px'; lab.textContent='Hal '+pageFor; p.appendChild(prev); p.appendChild(lab); p.appendChild(next); }
+    document.getElementById('limitFor').addEventListener('change',()=>{ pageFor=1; loadList(); });
+    const form=document.getElementById('f');
+    form.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const fd=new FormData(form);
+      const base=Object.fromEntries(fd.entries());
+      const body={
+        // auto code if empty
+        ...(base.kode? {kode: base.kode}: {}),
+        nama: base.nama,
+        dokter_sip: base.dokter_sip||null,
+        petunjuk: base.petunjuk||null,
+        standar: base.standar? true:false,
+      };
+      if(base.komposisi){
+        try{ body.komposisi = JSON.parse(base.komposisi); }
+        catch(e){ document.getElementById('err').textContent='Format komposisi harus JSON valid'; return; }
+      }
+      const {status,data}=await fetchJSON(api('/api/formula'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(status>=400){ document.getElementById('err').textContent=data&&data.errors?JSON.stringify(data.errors):(data&&data.error||'Gagal'); }
+      else{ form.reset(); document.getElementById('err').textContent=''; loadList(); alert('Tersimpan. Kode: '+(data&&data.kode?data.kode:(base.kode||''))); }
+    });
+    // Row actions
+    document.addEventListener('click', async (e)=>{
+      const btn=e.target.closest('button'); if(!btn) return; const act=btn.getAttribute('data-act'); const kode=btn.getAttribute('data-k'); if(!act||!kode) return;
+      if(act==='del'){ if(!confirm('Hapus formula '+kode+'?')) return; const r=await fetchJSON(api('/api/formula/'+encodeURIComponent(kode)),{method:'DELETE'}); if(r.status>=400){ alert('Gagal: '+(r.data&&r.data.error||r.raw||r.status)); } else { loadList(); } }
+      if(act==='edit'){
+        const r=await fetchJSON(api('/api/formula/'+encodeURIComponent(kode))); if(r.status>=400||!r.data){ alert('Gagal ambil data'); return; }
+        const o=r.data; const nama=prompt('Nama', o.nama||''); if(nama===null) return; const sip=prompt('Dokter SIP', o.dokter_sip||''); if(sip===null) return; const std=confirm('Tandai sebagai standar? (OK=Ya, Cancel=Tidak)'); const pet=prompt('Petunjuk', o.petunjuk||''); if(pet===null) return;
+        const rs=await fetchJSON(api('/api/formula/'+encodeURIComponent(kode)),{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:nama,dokter_sip:sip,standar:std,petunjuk:pet})}); if(rs.status>=400){ alert('Gagal update'); } else { loadList(); }
+      }
+    });
+    function filterRows(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#rows tr').forEach(tr=>{ const t=tr.textContent.toLowerCase(); tr.style.display=t.includes(q)?'':'none'; }); }
+    loadList();
+  </script>
+</body>
+</html>

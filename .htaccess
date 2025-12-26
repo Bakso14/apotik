@@ -1,0 +1,4 @@
+# For Apache with Laragon: route to public/index.php
+RewriteEngine On
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]

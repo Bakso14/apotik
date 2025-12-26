@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="id">
+<head>
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<title>Pelanggan</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="./styles.css?v=1">
+	<link rel="stylesheet" href="./admin.css?v=1">
+</head>
+<body>
+	<div class="layout">
+		<aside class="sidebar" data-include="sidebar"></aside>
+		<main class="main">
+			<div class="topbar" data-include="header"></div>
+			<div class="content">
+				<h2 class="page-title">Pelanggan</h2>
+				<div class="cards cards-2">
+										<div class="card">
+												<h3>Daftar Pelanggan</h3>
+												<div class="table-tools">
+													<div class="row" style="gap:8px;align-items:center">
+														<label>Limit <select id="limitPlg"><option>10</option><option selected>20</option><option>50</option><option>100</option></select></label>
+														<div id="pagerPlg" class="row" style="gap:6px"></div>
+													</div>
+												</div>
+												<table class="table">
+							<thead><tr><th>Kode</th><th>Nama</th><th>JK</th><th>HP</th><th>Aksi</th></tr></thead>
+							<tbody id="rows"></tbody>
+						</table>
+					</div>
+					<div class="card">
+						<h3 id="formTitle">Tambah Pelanggan</h3>
+						<form id="f">
+							<div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+								<div><label>Kode</label><input name="kode" maxlength="50" placeholder="Kosongkan untuk otomatis"></div>
+								<div><label>Nama</label><input name="nama" required maxlength="150"></div>
+								<div><label>Tgl Lahir</label><input type="date" name="tgl_lahir"></div>
+								<div><label>JK</label><select name="jenis_kelamin"><option value="">-</option><option value="L">L</option><option value="P">P</option></select></div>
+								<div><label>No HP</label><input name="no_hp" maxlength="30"></div>
+								<div style="grid-column:1/-1"><label>Alamat</label><input name="alamat"></div>
+								<div style="grid-column:1/-1"><label>Alergi</label><textarea name="alergi" rows="2"></textarea></div>
+								<div style="grid-column:1/-1"><label>Kondisi Medis</label><textarea name="kondisi_medis" rows="2"></textarea></div>
+							</div>
+							<div class="row" style="margin-top:10px;">
+								<button class="btn" type="submit" id="btnSubmit">Simpan</button>
+								<button class="btn btn-sm" type="button" id="btnCancel" style="display:none;">Batal</button>
+								<span class="error" id="err"></span>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script src="./app.js?v=2"></script>
+	<script src="./include.js?v=1"></script>
+	<script>
+		window.SIDEBAR_ACTIVE = 'pelanggan';
+		(async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
+		let editingKode=null;
+		let pagePlg=1;
+		async function loadList(){
+			const lim=parseInt(document.getElementById('limitPlg').value,10)||20;
+			const {data}=await fetchJSON(api(`/api/pelanggan?limit=${lim}&page=${pagePlg}`));
+			const tbody=document.getElementById('rows');
+			tbody.innerHTML='';
+			(data||[]).forEach(p=>{
+				const tr=document.createElement('tr');
+				tr.innerHTML=`<td><span class=\"pill\">${p.kode}</span></td><td>${p.nama||''}</td><td>${p.jenis_kelamin||''}</td><td>${p.no_hp||''}</td><td><div class=\"row\" style=\"gap:6px;\"><button class=\"btn btn-sm\" data-act=\"edit\">Edit</button><button class=\"btn btn-sm\" data-act=\"del\">Hapus</button></div></td>`;
+				tr.querySelector('[data-act=edit]').onclick=()=>startEdit(p);
+				tr.querySelector('[data-act=del]').onclick=()=>del(p.kode);
+				tbody.appendChild(tr);
+			});
+			renderPager();
+		}
+		function renderPager(){
+			const p=document.getElementById('pagerPlg'); p.innerHTML='';
+			const prev=document.createElement('button'); prev.className='btn btn-sm'; prev.textContent='Prev'; prev.disabled=pagePlg<=1; prev.onclick=()=>{ pagePlg=Math.max(1,pagePlg-1); loadList(); };
+			const next=document.createElement('button'); next.className='btn btn-sm'; next.textContent='Next'; next.onclick=()=>{ pagePlg++; loadList(); };
+			const lab=document.createElement('span'); lab.style.margin='0 6px'; lab.textContent='Hal '+pagePlg;
+			p.appendChild(prev); p.appendChild(lab); p.appendChild(next);
+		}
+		document.getElementById('limitPlg').addEventListener('change',()=>{ pagePlg=1; loadList(); });
+		function startEdit(p){
+			editingKode=p.kode;
+			const f=document.getElementById('f');
+			document.getElementById('formTitle').textContent='Edit Pelanggan';
+			document.getElementById('btnSubmit').textContent='Update';
+			document.getElementById('btnCancel').style.display='';
+			f.kode.value=p.kode; f.kode.disabled=true;
+			f.nama.value=p.nama||''; f.tgl_lahir.value=p.tgl_lahir||''; f.jenis_kelamin.value=p.jenis_kelamin||'';
+			f.no_hp.value=p.no_hp||''; f.alamat.value=p.alamat||''; f.alergi.value=p.alergi||''; f.kondisi_medis.value=p.kondisi_medis||'';
+			f.scrollIntoView({behavior:'smooth',block:'start'});
+		}
+		function resetForm(){
+			editingKode=null; const f=document.getElementById('f'); f.reset(); f.kode.disabled=false;
+			document.getElementById('formTitle').textContent='Tambah Pelanggan';
+			document.getElementById('btnSubmit').textContent='Simpan';
+			document.getElementById('btnCancel').style.display='none';
+			document.getElementById('err').textContent='';
+		}
+		document.getElementById('btnCancel').addEventListener('click',resetForm);
+		async function del(kode){
+			if(!confirm('Hapus pelanggan '+kode+'?')) return;
+			const {status,data}=await fetchJSON(api('/api/pelanggan/'+encodeURIComponent(kode)),{method:'DELETE'});
+			if(status>=400){ alert((data&&(data.error||JSON.stringify(data.errors)))||'Gagal hapus'); }
+			else{ resetForm(); loadList(); }
+		}
+		const form=document.getElementById('f');
+		form.addEventListener('submit',async e=>{
+			e.preventDefault();
+			const fd=new FormData(form); const body=Object.fromEntries(fd.entries());
+			let res;
+			if(editingKode){ res=await fetchJSON(api('/api/pelanggan/'+encodeURIComponent(editingKode)),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+			else{ res=await fetchJSON(api('/api/pelanggan'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+			const {status,data}=res;
+			if(status>=400){ document.getElementById('err').textContent=data&&data.errors?JSON.stringify(data.errors):(data&&data.error||'Gagal'); }
+			else{
+				// Show generated kode if any
+				if(!editingKode && data && data.kode){ alert('Kode pelanggan dibuat: '+data.kode); }
+				resetForm(); loadList();
+			}
+		});
+		function filterRows(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#rows tr').forEach(tr=>{ const txt=tr.textContent.toLowerCase(); tr.style.display=txt.includes(q)?'':'none'; }); }
+		loadList();
+	</script>
+</body>
+</html>

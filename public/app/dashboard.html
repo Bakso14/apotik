@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./admin.css?v=2">
+</head>
+<body>
+  <div class="layout">
+  <aside class="sidebar" data-include="sidebar"></aside>
+    <main class="main">
+      <div class="topbar" data-include="header"></div>
+      <div class="content">
+        <h2 class="page-title">Ringkasan</h2>
+        <div class="cards cards-2">
+          <div class="card">
+            <h3>Penjualan Hari Ini</h3>
+            <div class="stat"><div class="num" id="p_total" data-countup>0</div><div class="muted">IDR</div></div>
+            <div class="muted-sm">Transaksi: <span id="p_count" data-countup>0</span></div>
+            <div style="margin-top:10px"><canvas id="c" width="400" height="120" style="width:100%;height:120px;border-radius:8px;background:#f8fafc" class="skeleton"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Pembelian Hari Ini</h3>
+            <div class="stat"><div class="num" id="b_total" data-countup>0</div><div class="muted">IDR</div></div>
+            <div class="muted-sm">Stok menipis: <span id="low" data-countup>0</span> item</div>
+            <div style="margin-top:10px" class="row"><a class="btn btn-sm" href="./laporan.html">Lihat Laporan</a><a class="btn btn-sm" href="./penjualan.html">Ke Kasir</a></div>
+            <div style="margin-top:10px"><canvas id="c2" width="400" height="120" style="width:100%;height:120px;border-radius:8px;background:#f8fafc" class="skeleton"></canvas></div>
+          </div>
+        </div>
+        <div class="cards cards-3" style="margin-top:12px">
+          <div class="card">
+            <h3>Transaksi Terakhir</h3>
+            <ul id="recent" class="list" style="margin:0;padding-left:20px"></ul>
+          </div>
+          <div class="card">
+            <h3>Stok Menipis</h3>
+            <ul id="lowlist" class="list" style="margin:0;padding-left:20px"></ul>
+          </div>
+          <div class="card">
+            <h3>Terlaris 7 Hari</h3>
+            <ul id="tops" class="list" style="margin:0;padding-left:20px"></ul>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="./app.js?v=2"></script>
+  <script src="./include.js?v=1"></script>
+  <script>
+    window.SIDEBAR_ACTIVE = 'dashboard';
+    async function load(){
+      const r = await fetchJSON(api('/api/dashboard'));
+      if(r.status===401){ location.href='./login.html'; return; }
+  const d=r.data||{};
+      countUp('#p_count', d.today_penjualan_count||0);
+      countUp('#p_total', d.today_penjualan_total||0);
+      countUp('#b_total', d.today_pembelian_total||0);
+      countUp('#low', d.low_stock_count||0);
+      // mini chart: last 7 days totals
+      try{
+        const canvas=document.getElementById('c'); const ctx=canvas.getContext('2d');
+        const series=(d.series_last7||[]).map(x=>Number(x.total||0));
+        const max=Math.max(1,...series);
+        canvas.classList.remove('skeleton'); ctx.clearRect(0,0,canvas.width,canvas.height);
+        // gradient fill under line
+        const grad=ctx.createLinearGradient(0,0,0,canvas.height);
+        grad.addColorStop(0,'rgba(14,165,233,.35)'); grad.addColorStop(1,'rgba(14,165,233,0)');
+        ctx.fillStyle=grad; ctx.beginPath();
+        series.forEach((v,i)=>{ const x=i*(canvas.width/(Math.max(1,series.length-1))); const y=canvas.height - (v/max)*canvas.height*0.9 - 6; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+        ctx.lineTo(canvas.width,canvas.height); ctx.lineTo(0,canvas.height); ctx.closePath(); ctx.fill();
+        // animated stroke
+        ctx.strokeStyle='#0ea5e9'; ctx.lineWidth=2; ctx.setLineDash([canvas.width]); ctx.lineDashOffset=canvas.width; ctx.beginPath();
+        series.forEach((v,i)=>{ const x=i*(canvas.width/(Math.max(1,series.length-1))); const y=canvas.height - (v/max)*canvas.height*0.9 - 6; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+        ctx.stroke();
+        // animate dash offset
+        let off=canvas.width; const step=()=>{ off=Math.max(0,off-8); ctx.clearRect(0,0,canvas.width,canvas.height);
+          // redraw fill
+          const grad2=ctx.createLinearGradient(0,0,0,canvas.height); grad2.addColorStop(0,'rgba(14,165,233,.35)'); grad2.addColorStop(1,'rgba(14,165,233,0)');
+          ctx.fillStyle=grad2; ctx.beginPath(); series.forEach((v,i)=>{ const x=i*(canvas.width/(Math.max(1,series.length-1))); const y=canvas.height - (v/max)*canvas.height*0.9 - 6; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.lineTo(canvas.width,canvas.height); ctx.lineTo(0,canvas.height); ctx.closePath(); ctx.fill();
+          ctx.setLineDash([canvas.width]); ctx.lineDashOffset=off; ctx.strokeStyle='#0ea5e9'; ctx.lineWidth=2; ctx.beginPath(); series.forEach((v,i)=>{ const x=i*(canvas.width/(Math.max(1,series.length-1))); const y=canvas.height - (v/max)*canvas.height*0.9 - 6; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); if(off>0) requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+
+        // bar chart on second canvas for purchases
+  const canvas2=document.getElementById('c2'); const ctx2=canvas2.getContext('2d'); canvas2.classList.remove('skeleton');
+  const s2=(d.series_last7_buy||series).map(x=>Number(x.total||0));
+        const max2=Math.max(1,...s2);
+        ctx2.clearRect(0,0,canvas2.width,canvas2.height);
+        const barW = Math.max(8, canvas2.width/ (s2.length*1.5));
+        s2.forEach((v,i)=>{ const x=i*(canvas2.width/s2.length)+8; const h=(v/max2)*canvas2.height*0.8; const y=canvas2.height-h-6; const r=8; ctx2.fillStyle='rgba(16,185,129,.8)';
+          // rounded rect bars
+          const w=barW; const rr=Math.min(r,h/2,w/2);
+          ctx2.beginPath(); ctx2.moveTo(x+rr,y); ctx2.lineTo(x+w-rr,y); ctx2.quadraticCurveTo(x+w,y,x+w,y+rr); ctx2.lineTo(x+w,y+h); ctx2.lineTo(x,y+h); ctx2.lineTo(x,y+rr); ctx2.quadraticCurveTo(x,y,x+rr,y); ctx2.closePath(); ctx2.fill();
+        });
+  }catch(e){}
+  // render lists with small fade-in
+  const rec=document.getElementById('recent'); rec.innerHTML='';
+  (d.recent_penjualan||[]).forEach((x,i)=>{ const li=document.createElement('li'); li.textContent=`${x.no_nota} • Rp ${(Number(x.total)||0).toLocaleString('id-ID')} • ${new Date(x.tgl).toLocaleString('id-ID')}`; li.style.opacity=0; rec.appendChild(li); requestAnimationFrame(()=>{ li.style.transition='opacity .4s ease'; li.style.opacity=1; }); });
+  const lowl=document.getElementById('lowlist'); lowl.innerHTML='';
+  (d.low_stock_items||[]).forEach(x=>{ const li=document.createElement('li'); li.textContent=`${x.kode} • ${x.nama} (stok: ${x.stok})`; li.style.opacity=0; lowl.appendChild(li); requestAnimationFrame(()=>{ li.style.transition='opacity .4s ease'; li.style.opacity=1; }); });
+  const tops=document.getElementById('tops'); tops.innerHTML='';
+  (d.top_selling_last7||[]).forEach(x=>{ const li=document.createElement('li'); li.textContent=`${x.kode} • ${x.nama} (qty: ${x.qty})`; li.style.opacity=0; tops.appendChild(li); requestAnimationFrame(()=>{ li.style.transition='opacity .4s ease'; li.style.opacity=1; }); });
+    }
+    load();
+    // countUp util
+    function countUp(sel, target){
+      const el = document.querySelector(sel); if(!el) return;
+      const isMoney = sel==='#p_total' || sel==='#b_total';
+      const dur = 600; const start = performance.now(); const from = 0; const to = Number(target||0);
+      const step = (t)=>{
+        const p = Math.min(1, (t-start)/dur);
+        const val = Math.round(from + (to-from)*p);
+        el.textContent = isMoney ? val.toLocaleString('id-ID') : String(val);
+        if(p<1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+  </script>
+</body>
+</html>

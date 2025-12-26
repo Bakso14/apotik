@@ -1,0 +1,240 @@
+-- SQL schema for Apotek (MySQL 5.7+/MariaDB 10.2+) compatible
+-- Prioritize patient safety, compliance, and auditability
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  nama VARCHAR(150) NOT NULL,
+  role ENUM('admin','apoteker','kasir','gudang','owner') NOT NULL DEFAULT 'apoteker',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS m_obat (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kode VARCHAR(50) NOT NULL UNIQUE,
+  nama VARCHAR(255) NOT NULL,
+  produsen VARCHAR(255) NULL,
+  harga DECIMAL(15,2) NOT NULL DEFAULT 0,
+  stok INT NOT NULL DEFAULT 0,
+  expired_date DATE NOT NULL,
+  golongan ENUM('OTC','OBT','OK','Psikotropika','Narkotika') NOT NULL DEFAULT 'OTC',
+  narkotika_psikotropika TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS m_pelanggan (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kode VARCHAR(50) NOT NULL UNIQUE,
+  nama VARCHAR(150) NOT NULL,
+  tgl_lahir DATE NULL,
+  jenis_kelamin ENUM('L','P') NULL,
+  alergi TEXT NULL,
+  kondisi_medis TEXT NULL,
+  no_hp VARCHAR(30) NULL,
+  alamat TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS m_dokter (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sip VARCHAR(100) NOT NULL UNIQUE,
+  nama VARCHAR(150) NOT NULL,
+  spesialisasi VARCHAR(150) NULL,
+  fasilitas_kesehatan VARCHAR(150) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS m_supplier (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kode VARCHAR(50) NOT NULL UNIQUE,
+  nama VARCHAR(200) NOT NULL,
+  sertifikasi VARCHAR(200) NULL,
+  alamat TEXT NULL,
+  kontak VARCHAR(100) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS m_karyawan (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kode VARCHAR(50) NOT NULL UNIQUE,
+  nama VARCHAR(150) NOT NULL,
+  jabatan VARCHAR(100) NOT NULL,
+  level_akses ENUM('farmasi','kasir','gudang','admin') NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS m_formula_racik (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kode VARCHAR(50) NOT NULL UNIQUE,
+  nama VARCHAR(150) NOT NULL,
+  dokter_sip VARCHAR(100) NULL,
+  komposisi JSON NULL,
+  petunjuk TEXT NULL,
+  standar TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_formula_dokter FOREIGN KEY (dokter_sip) REFERENCES m_dokter(sip) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS interaksi_obat (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  obat1_kode VARCHAR(50) NOT NULL,
+  obat2_kode VARCHAR(50) NOT NULL,
+  tingkat ENUM('minor','moderate','major','contraindicated') NOT NULL,
+  keterangan TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_interaksi (obat1_kode, obat2_kode),
+  CONSTRAINT fk_interaksi_obat1 FOREIGN KEY (obat1_kode) REFERENCES m_obat(kode) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_interaksi_obat2 FOREIGN KEY (obat2_kode) REFERENCES m_obat(kode) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Pembelian & batch tracking
+CREATE TABLE IF NOT EXISTS pembelian (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  no_faktur VARCHAR(100) NOT NULL UNIQUE,
+  tgl DATE NOT NULL,
+  supplier_kode VARCHAR(50) NOT NULL,
+  pajak DECIMAL(15,2) NOT NULL DEFAULT 0,
+  total DECIMAL(15,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_beli_supplier FOREIGN KEY (supplier_kode) REFERENCES m_supplier(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS pembelian_item (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  pembelian_id BIGINT NOT NULL,
+  obat_kode VARCHAR(50) NOT NULL,
+  batch_no VARCHAR(100) NOT NULL,
+  expired_date DATE NOT NULL,
+  qty INT NOT NULL,
+  harga_beli DECIMAL(15,2) NOT NULL,
+  cold_chain TINYINT(1) NOT NULL DEFAULT 0,
+  suhu_min DECIMAL(5,2) NULL,
+  suhu_max DECIMAL(5,2) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_beli_item FOREIGN KEY (pembelian_id) REFERENCES pembelian(id) ON DELETE CASCADE,
+  CONSTRAINT fk_beli_item_obat FOREIGN KEY (obat_kode) REFERENCES m_obat(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Penjualan (OTC/Resep/Racik)
+CREATE TABLE IF NOT EXISTS penjualan (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  no_nota VARCHAR(100) NOT NULL UNIQUE,
+  tgl DATETIME NOT NULL,
+  jenis ENUM('OTC','Resep','Racik') NOT NULL,
+  pelanggan_kode VARCHAR(50) NULL,
+  dokter_sip VARCHAR(100) NULL,
+  narkotika_psikotropika TINYINT(1) NOT NULL DEFAULT 0,
+  total DECIMAL(15,2) NOT NULL DEFAULT 0,
+  created_by INT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_jual_pelanggan FOREIGN KEY (pelanggan_kode) REFERENCES m_pelanggan(kode),
+  CONSTRAINT fk_jual_dokter FOREIGN KEY (dokter_sip) REFERENCES m_dokter(sip),
+  CONSTRAINT fk_jual_user FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS penjualan_item (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  penjualan_id BIGINT NOT NULL,
+  obat_kode VARCHAR(50) NOT NULL,
+  batch_no VARCHAR(100) NULL,
+  qty INT NOT NULL,
+  harga_jual DECIMAL(15,2) NOT NULL,
+  dosis VARCHAR(100) NULL,
+  etiket TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_jual_item FOREIGN KEY (penjualan_id) REFERENCES penjualan(id) ON DELETE CASCADE,
+  CONSTRAINT fk_jual_item_obat FOREIGN KEY (obat_kode) REFERENCES m_obat(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Racikan detail
+CREATE TABLE IF NOT EXISTS penjualan_racik (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  penjualan_id BIGINT NOT NULL,
+  formula_kode VARCHAR(50) NULL,
+  beyond_use_date DATE NULL,
+  qc_note TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_racik_jual FOREIGN KEY (penjualan_id) REFERENCES penjualan(id) ON DELETE CASCADE,
+  CONSTRAINT fk_racik_formula FOREIGN KEY (formula_kode) REFERENCES m_formula_racik(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS penjualan_racik_bahan (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  racik_id BIGINT NOT NULL,
+  obat_kode VARCHAR(50) NOT NULL,
+  qty DECIMAL(12,3) NOT NULL,
+  satuan VARCHAR(20) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_racik_bahan FOREIGN KEY (racik_id) REFERENCES penjualan_racik(id) ON DELETE CASCADE,
+  CONSTRAINT fk_racik_bahan_obat FOREIGN KEY (obat_kode) REFERENCES m_obat(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Inventory mutations
+CREATE TABLE IF NOT EXISTS stok_kartu (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tgl DATETIME NOT NULL,
+  obat_kode VARCHAR(50) NOT NULL,
+  batch_no VARCHAR(100) NULL,
+  ref_type ENUM('BELI','JUAL','RETUR_IN','RETUR_OUT','KOREKSI','RACIK_IN','RACIK_OUT') NOT NULL,
+  ref_id BIGINT NULL,
+  qty_in INT NOT NULL DEFAULT 0,
+  qty_out INT NOT NULL DEFAULT 0,
+  saldo INT NOT NULL DEFAULT 0,
+  keterangan TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_stok_obat FOREIGN KEY (obat_kode) REFERENCES m_obat(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Keuangan
+CREATE TABLE IF NOT EXISTS keu_kasbank (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tgl DATETIME NOT NULL,
+  jenis ENUM('KAS','BANK') NOT NULL,
+  deskripsi VARCHAR(255) NOT NULL,
+  debit DECIMAL(15,2) NOT NULL DEFAULT 0,
+  kredit DECIMAL(15,2) NOT NULL DEFAULT 0,
+  ref_type VARCHAR(50) NULL,
+  ref_id BIGINT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS hutang_supplier (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  supplier_kode VARCHAR(50) NOT NULL,
+  pembelian_id BIGINT NULL,
+  saldo DECIMAL(15,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_hutang_supplier FOREIGN KEY (supplier_kode) REFERENCES m_supplier(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS piutang_pelanggan (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  pelanggan_kode VARCHAR(50) NOT NULL,
+  penjualan_id BIGINT NULL,
+  saldo DECIMAL(15,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_piutang_pelanggan FOREIGN KEY (pelanggan_kode) REFERENCES m_pelanggan(kode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Audit trail
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  tgl DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  user_id INT NULL,
+  action VARCHAR(50) NOT NULL,
+  entity VARCHAR(50) NOT NULL,
+  entity_id VARCHAR(100) NULL,
+  detail TEXT NULL,
+  ip VARCHAR(45) NULL,
+  CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Safety: allergy and interaction checks will be implemented at application level before inserting penjualan

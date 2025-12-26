@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kartu Stok</title>
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./admin.css?v=2">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" data-include="sidebar"></aside>
+  <main class="main">
+    <div class="topbar" data-include="header"></div>
+    <div class="content">
+      <h2 class="page-title">Kartu Stok</h2>
+      <div class="card">
+        <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap">
+          <label>Obat
+            <input id="obat" placeholder="Masukkan Kode Obat" />
+          </label>
+          <button class="btn" id="load">Tampilkan</button>
+          <button class="btn" id="print">Cetak</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="head"></div>
+        <table class="table">
+          <thead>
+            <tr><th>Tgl</th><th>Ref</th><th>Masuk</th><th>Keluar</th><th>Saldo</th><th>Ket</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="./app.js?v=2"></script>
+<script src="./include.js?v=1"></script>
+<script>
+window.SIDEBAR_ACTIVE = 'stok-kartu';
+(async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
+async function load(){
+  const kode = document.getElementById('obat').value.trim(); if(!kode){ alert('Isi Kode Obat'); return; }
+  const {status,data} = await fetchJSON(api('/api/stok-kartu?obat_kode='+encodeURIComponent(kode)));
+  if(status>=400){ alert((data&&data.error)||'Gagal'); return; }
+  document.getElementById('head').textContent = `${data.obat.kode} - ${data.obat.nama} | Stok: ${data.obat.stok}`;
+  const tb = document.getElementById('rows'); tb.innerHTML='';
+  (data.rows||[]).forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.tgl||''}</td><td>${r.ref_type||''}#${r.ref_id||''}</td><td>${r.qty_in||0}</td><td>${r.qty_out||0}</td><td>${r.saldo||0}</td><td>${r.keterangan||''}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+document.getElementById('load').onclick = load;
+document.getElementById('print').onclick = ()=>{ window.print(); };
+</script>
+</body>
+</html>

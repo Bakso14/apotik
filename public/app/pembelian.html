@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="id">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Pembelian</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="./styles.css?v=1">
+	<link rel="stylesheet" href="./admin.css?v=2">
+	<style>
+		/* Small tweak so nested item cards inside the form look consistent */
+		#items .card { padding: 12px; }
+		/* Responsive, tidy item grid */
+		#items .item-grid{ display:grid; gap:10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items:end; }
+		#items .item-grid label{ margin:4px 0 6px; font-size:12px; color:#6b7280; }
+		#items .item-grid input, #items .item-grid select{ min-height:40px; }
+		#items .item-grid .row-inline{ grid-column:1/-1; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+		#items .item-grid .row-inline input[type=number]{ width:140px; }
+		#items .item-grid .btn.btn-sm{ align-self:center; }
+	</style>
+	</head>
+<body>
+	<div class="layout">
+		<aside class="sidebar" data-include="sidebar"></aside>
+		<main class="main">
+			<div class="topbar" data-include="header"></div>
+			<div class="content">
+				<h2 class="page-title">Pembelian</h2>
+				<div class="cards cards-2">
+								<div class="card">
+									<h3>Daftar Pembelian</h3>
+									<div class="table-tools">
+										<div class="search"><input placeholder="Filter tabel..." oninput="filterRows(this.value)"></div>
+										<div class="row" style="gap:8px;align-items:center">
+											<label>Limit <select id="limitBel"><option>10</option><option selected>20</option><option>50</option><option>100</option></select></label>
+											<div id="pagerBel" class="row" style="gap:6px"></div>
+										</div>
+									</div>
+                                    <table class="table">
+							<thead>
+									<tr><th>ID</th><th>No Faktur</th><th>Tgl</th><th>Supplier</th><th>Status</th><th>Saldo</th><th>Total</th><th>Aksi</th></tr>
+							</thead>
+							<tbody id="rows"></tbody>
+						</table>
+					</div>
+					<div class="card">
+						<h3>Input Pembelian</h3>
+						<form id="f">
+							<div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
+								<div><label>No Faktur</label><input name="no_faktur" placeholder="Kosongkan untuk otomatis"></div>
+								<div><label>Tanggal</label><input name="tgl" type="date" required></div>
+								<div style="grid-column:1/-1">
+									<label>Supplier</label>
+									<div class="row" style="gap:8px;align-items:center">
+										<input name="supplier_kode" list="supplierList" placeholder="Ketik kode atau nama, lalu pilih" autocomplete="off" required style="flex:1">
+										<button type="button" class="btn btn-sm" id="refreshSup">↻</button>
+									</div>
+									<datalist id="supplierList"></datalist>
+								</div>
+								<div><label>Pajak</label><input name="pajak" type="number" step="0.01" min="0" value="0"></div>
+								<div><label>Bayar (opsional)</label><input name="bayar" type="number" step="0.01" min="0" value="0"></div>
+							</div>
+							<hr/>
+							<!-- Global datalist for obat autocomplete -->
+							<datalist id="obatList"></datalist>
+							<div id="items"></div>
+							<div class="row" style="gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap">
+								<button type="button" class="btn" id="addItem">+ Tambah Item</button>
+								<button type="button" class="btn btn-sm" id="refreshObat">↻ Obat</button>
+							</div>
+							<div class="row" style="margin-top:10px;">
+								<button class="btn" type="submit">Simpan</button>
+								<span class="error" id="err"></span>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script src="./app.js?v=2"></script>
+	<script src="./include.js?v=1"></script>
+	<script>
+	window.SIDEBAR_ACTIVE = 'pembelian';
+		(async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
+		// set default date today for tgl if empty
+		(function(){ const f=document.getElementById('f'); const d=f.querySelector('input[name=tgl]'); if(d && !d.value){ d.value = new Date().toISOString().slice(0,10); } })();
+
+		// Load suppliers for autocomplete (datalist)
+		const suppliersCache = { list: [], byKode: {}, byNama: {} };
+		async function loadSuppliers(){
+			try{
+				const {data} = await fetchJSON(api('/api/supplier?limit=200&page=1'));
+				const list = Array.isArray(data)?data:[];
+				suppliersCache.list = list;
+				suppliersCache.byKode = {};
+				suppliersCache.byNama = {};
+				const dl = document.getElementById('supplierList');
+				dl.innerHTML = '';
+				list.forEach(s=>{
+					if(!s || !s.kode) return;
+					suppliersCache.byKode[(s.kode+'').toUpperCase()] = s;
+					if (s.nama) suppliersCache.byNama[(s.nama+'').toLowerCase()] = s;
+					const opt = document.createElement('option');
+					opt.value = s.kode;
+					opt.textContent = `${s.kode} - ${s.nama||''}`.trim();
+					dl.appendChild(opt);
+				});
+			}catch(e){ /* ignore */ }
+		}
+		document.getElementById('refreshSup').addEventListener('click', loadSuppliers);
+		// initial load
+		loadSuppliers();
+		function itemRow(){
+			const wrap=document.createElement('div');
+			wrap.className='card';
+			wrap.style.marginTop='10px';
+			wrap.innerHTML=`
+				<div class="item-grid">
+					<div><label>Obat</label><input name="obat_kode" list="obatList" placeholder="Ketik kode atau nama, lalu pilih" autocomplete="off" required></div>
+					<div><label>Batch</label><input name="batch_no" required></div>
+					<div><label>Expired</label><input name="expired_date" type="date" required></div>
+					<div><label>Qty</label><input name="qty" type="number" min="1" required></div>
+					<div><label>Harga Beli Total</label><input name="harga_beli_total" type="number" step="0.01" min="0" required></div>
+					<div><label>Harga Beli</label><input name="harga_beli" type="number" step="0.01" min="0" readonly></div>
+					<div class="row-inline">
+						<label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" name="cold_chain"> Cold Chain</label>
+						<input name="suhu_min" placeholder="Suhu Min (°C)" type="number" step="0.1">
+						<input name="suhu_max" placeholder="Suhu Max (°C)" type="number" step="0.1">
+						<button type="button" class="btn btn-sm" onclick="this.closest('.card').remove()">Hapus</button>
+					</div>
+				</div>`;
+
+			// ============================
+			// AUTO HITUNG HARGA BELI
+			// ============================
+			const qtyInput   = wrap.querySelector('input[name=qty]');
+			const totalInput = wrap.querySelector('input[name=harga_beli_total]');
+			const hargaInput = wrap.querySelector('input[name=harga_beli]');
+
+			function hitungHarga(){
+				const qty = parseFloat(qtyInput.value);
+				const total = parseFloat(totalInput.value);
+
+				if(qty > 0 && total >= 0){
+					hargaInput.value = (total / qty).toFixed(2);
+				}else{
+					hargaInput.value = '';
+				}
+			}
+
+			qtyInput.addEventListener('input', hitungHarga);
+			totalInput.addEventListener('input', hitungHarga);
+			// Set default expired_date = (tgl form atau hari ini) + 1 tahun
+			try{
+			  const tgl = document.querySelector('#f input[name=tgl]')?.value || new Date().toISOString().slice(0,10);
+			  const d = new Date(tgl);
+			  d.setFullYear(d.getFullYear()+1);
+			  const iso = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+			  const ex = wrap.querySelector('input[name=expired_date]'); if(ex && !ex.value) ex.value = iso;
+			}catch(e){}
+			return wrap;
+		}
+
+		const items=document.getElementById('items');
+		document.getElementById('addItem').addEventListener('click',()=>items.appendChild(itemRow()));
+		items.appendChild(itemRow());
+
+		// If Tanggal changes, prefill empty expired dates to +1 year from that date
+		(function(){
+		  const tglEl=document.querySelector('#f input[name=tgl]'); if(!tglEl) return;
+		  tglEl.addEventListener('change', ()=>{
+		    try{
+		      const base = tglEl.value || new Date().toISOString().slice(0,10);
+		      const d = new Date(base); d.setFullYear(d.getFullYear()+1);
+		      const iso = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+		      document.querySelectorAll('#items input[name=expired_date]').forEach(ex=>{ if(!ex.value) ex.value = iso; });
+		    }catch(e){}
+		  });
+		})();
+
+		// Load obat list for datalist
+		const obatCache = { list: [], byKode: {}, byNama: {} };
+		async function loadObat(){
+			try{
+				const {data} = await fetchJSON(api('/api/obat?limit=200&page=1'));
+				const list = Array.isArray(data)?data:[];
+				obatCache.list = list;
+				obatCache.byKode = {};
+				obatCache.byNama = {};
+				const dl = document.getElementById('obatList');
+				dl.innerHTML = '';
+				list.forEach(o=>{
+					if(!o || !o.kode) return;
+					obatCache.byKode[(o.kode+'').toUpperCase()] = o;
+					if (o.nama) obatCache.byNama[(o.nama+'').toLowerCase()] = o;
+					const opt = document.createElement('option');
+					opt.value = o.kode;
+					opt.textContent = `${o.kode} - ${o.nama||''}`.trim();
+					dl.appendChild(opt);
+				});
+			}catch(e){ /* ignore */ }
+		}
+		document.getElementById('refreshObat').addEventListener('click', loadObat);
+		loadObat();
+
+			let pageBel=1;
+			async function loadList(){
+			const lim=parseInt(document.getElementById('limitBel').value,10)||20;
+			const {data}=await fetchJSON(api(`/api/pembelian?limit=${lim}&page=${pageBel}`));
+			const tbody=document.getElementById('rows');
+			tbody.innerHTML='';
+            (data||[]).forEach(p=>{
+				const tr=document.createElement('tr');
+					tr.innerHTML=`<td>${p.id}</td><td><span class="pill">${p.no_faktur}</span></td><td>${p.tgl}</td><td>${p.supplier_kode}</td><td>${p.status||''}</td><td>${fmtIDR(p.saldo||0)}</td><td>${fmtIDR(p.total)}</td><td><div class="row" style="gap:6px;">${(p.saldo>0?`<a class="btn btn-sm" href="./hutang-supplier.html" title="Bayar hutang">Bayar</a>`:'')}<button class="btn btn-sm" data-act="del">Hapus</button></div></td>`;
+					tr.querySelector('[data-act=del]').onclick=()=>del(p.id);
+				tbody.appendChild(tr);
+			});
+			renderPager();
+		}
+		function renderPager(){ const p=document.getElementById('pagerBel'); p.innerHTML=''; const prev=document.createElement('button'); prev.className='btn btn-sm'; prev.textContent='Prev'; prev.disabled=pageBel<=1; prev.onclick=()=>{ pageBel=Math.max(1,pageBel-1); loadList(); }; const next=document.createElement('button'); next.className='btn btn-sm'; next.textContent='Next'; next.onclick=()=>{ pageBel++; loadList(); }; const lab=document.createElement('span'); lab.style.margin='0 6px'; lab.textContent='Hal '+pageBel; p.appendChild(prev); p.appendChild(lab); p.appendChild(next); }
+		document.getElementById('limitBel').addEventListener('change',()=>{ pageBel=1; loadList(); });
+			async function del(id){
+				if(!confirm('Hapus pembelian #'+id+'?\nStok akan di-rollback jika memungkinkan.')) return;
+				const {status,data}=await fetchJSON(api('/api/pembelian/'+id),{method:'DELETE'});
+				if(status>=400){ alert((data&&(data.error||JSON.stringify(data.errors)))||'Gagal hapus'); }
+				else{ loadList(); }
+			}
+
+			function filterRows(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#rows tr').forEach(tr=>{ const t=tr.textContent.toLowerCase(); tr.style.display=t.includes(q)?'':'none'; }); }
+
+		const form=document.getElementById('f');
+		form.addEventListener('submit',async e=>{
+			e.preventDefault();
+			const fd=new FormData(form);
+			const base=Object.fromEntries(fd.entries());
+			// Map supplier input to a valid kode via datalist cache
+			let supInput = (base.supplier_kode||'').trim();
+			if (supInput.includes(' - ')) supInput = supInput.split(' - ')[0].trim();
+			let supKode = supInput;
+			if (!supKode || !suppliersCache.byKode[(supKode+'').toUpperCase()]){
+				const byNama = suppliersCache.byNama[(supInput+'').toLowerCase()];
+				if (byNama && byNama.kode) supKode = byNama.kode;
+			}
+			if (!supKode || !suppliersCache.byKode[(supKode+'').toUpperCase()]){
+				document.getElementById('err').textContent = 'Supplier tidak valid. Pilih dari daftar.';
+				return;
+			}
+			const it=[];
+			document.querySelectorAll('#items .card').forEach(c=>{
+				const x={};
+				c.querySelectorAll('input').forEach(i=>{
+					if(i.type==='checkbox') x[i.name]=i.checked; else x[i.name]=i.value;
+				});
+				if(x.obat_kode){
+					// Map obat input to a valid kode via datalist cache
+					let obatInput = (x.obat_kode||'').trim();
+					if (obatInput.includes(' - ')) obatInput = obatInput.split(' - ')[0].trim();
+					let obatKode = obatInput;
+					if (!obatKode || !obatCache.byKode[(obatKode+'').toUpperCase()]){
+						const byNama = obatCache.byNama[(obatInput+'').toLowerCase()];
+						if (byNama && byNama.kode) obatKode = byNama.kode;
+					}
+					if (!obatKode || !obatCache.byKode[(obatKode+'').toUpperCase()]){
+						it.push({ __invalid:true, __msg:`Obat tidak valid: "${x.obat_kode}"` });
+						return;
+					}
+					it.push({
+						obat_kode:obatKode,
+						batch_no:x.batch_no,
+						expired_date:x.expired_date,
+						qty:parseInt(x.qty||0,10),
+						harga_beli:parseFloat(x.harga_beli||0),
+						cold_chain:!!x.cold_chain,
+						suhu_min:x.suhu_min?parseFloat(x.suhu_min):null,
+						suhu_max:x.suhu_max?parseFloat(x.suhu_max):null
+					});
+				}
+			});
+			// Client-side validation for invalid obat rows
+			const invalid = it.find(r=>r.__invalid);
+			if (invalid){ document.getElementById('err').textContent = invalid.__msg || 'Obat tidak valid.'; return; }
+			const body={
+				no_faktur:base.no_faktur,
+				tgl:base.tgl,
+				supplier_kode:supKode,
+				pajak:parseFloat(base.pajak||0),
+				bayar:parseFloat(base.bayar||0),
+				items:it
+			};
+			const {status,data}=await fetchJSON(api('/api/pembelian'),{
+				method:'POST',
+				headers:{'Content-Type':'application/json'},
+				body:JSON.stringify(body)
+			});
+			if(status>=400){
+				document.getElementById('err').textContent = data && data.errors ? JSON.stringify(data.errors) : (data && data.error || 'Gagal');
+			} else {
+				// Show generated no_faktur if any
+				if(data && data.no_faktur){ alert('No Faktur dibuat: '+data.no_faktur); }
+				form.reset();
+				document.getElementById('err').textContent='';
+				items.innerHTML='';
+				items.appendChild(itemRow());
+				loadList();
+			}
+		});
+
+		function filterRows(q){ q=(q||'').toLowerCase(); document.querySelectorAll('#rows tr').forEach(tr=>{ const t=tr.textContent.toLowerCase(); tr.style.display=t.includes(q)?'':'none'; }); }
+		loadList();
+	</script>
+</body>
+</html>

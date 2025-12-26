@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hutang Supplier</title>
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./admin.css?v=2">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" data-include="sidebar"></aside>
+  <main class="main">
+    <div class="topbar" data-include="header"></div>
+    <div class="content">
+      <h2 class="page-title">Hutang Supplier</h2>
+      <div class="card">
+        <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap">
+          <input id="sup" placeholder="Filter Supplier (opsional)" />
+          <button class="btn" id="reload">Muat</button>
+        </div>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th>Tgl</th><th>No Faktur</th><th>Supplier</th><th>Tagihan</th><th>Saldo</th><th>Aksi</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="card" id="payBox" style="display:none">
+        <h3>Pembayaran Hutang</h3>
+        <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap">
+          <input id="pay_tgl" type="date" />
+          <input id="pay_nom" type="number" step="0.01" min="0" placeholder="Nominal" />
+          <input id="pay_met" placeholder="Metode (tunai/transfer)" />
+          <input id="pay_ket" placeholder="Keterangan" />
+          <button class="btn" id="pay_go">Bayar</button>
+          <span class="error" id="pay_err"></span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="./app.js?v=2"></script>
+<script src="./include.js?v=1"></script>
+<script>
+window.SIDEBAR_ACTIVE = 'hutang-supplier';
+(async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
+
+let currentHutang = null;
+function setToday(){ const d=new Date(); const z=new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); document.getElementById('pay_tgl').value=z; }
+setToday();
+
+async function load(){
+  const sup = document.getElementById('sup').value.trim();
+  const qs = `status=open${sup?`&supplier_kode=${encodeURIComponent(sup)}`:''}`;
+  const {status,data} = await fetchJSON(api('/api/hutang-supplier?'+qs));
+  if(status>=400){ alert((data&&data.error)||'Gagal'); return; }
+  const tb = document.getElementById('rows'); tb.innerHTML='';
+  (data||[]).forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.tgl}</td><td>${r.no_faktur}</td><td>${r.supplier_kode}</td><td>${r.tagihan}</td><td>${r.saldo}</td><td><button class='btn btn-sm' data-id='${r.id}' data-saldo='${r.saldo}'>Bayar</button></td>`;
+    tr.querySelector('button').onclick = ()=>{ currentHutang={id:r.id,saldo:r.saldo}; document.getElementById('pay_nom').value=r.saldo; document.getElementById('payBox').style.display='block'; };
+    tb.appendChild(tr);
+  });
+}
+
+document.getElementById('reload').onclick = load;
+load();
+
+document.getElementById('pay_go').onclick = async ()=>{
+  if(!currentHutang){ return; }
+  const tgl = document.getElementById('pay_tgl').value; const nom=parseFloat(document.getElementById('pay_nom').value||0); const metode=document.getElementById('pay_met').value; const ket=document.getElementById('pay_ket').value;
+  const {status,data} = await fetchJSON(api(`/api/hutang-supplier/${currentHutang.id}/pay`),{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({tgl, nominal: nom, metode, keterangan: ket})});
+  if(status>=400){ document.getElementById('pay_err').textContent = data && data.errors ? JSON.stringify(data.errors) : (data&&data.error||'Gagal'); return; }
+  document.getElementById('pay_err').textContent=''; document.getElementById('payBox').style.display='none'; currentHutang=null; load();
+};
+</script>
+</body>
+</html>
