@@ -3,9 +3,9 @@
 
 define('ENV', [
     'DB_HOST' => '127.0.0.1',
-    'DB_USER' => 'root',
-    'DB_PASS' => '',
-    'DB_NAME' => 'apotikdb',
+    'DB_USER' => 'u212736227_apotek',
+    'DB_PASS' => 'Ana_Cantik14',
+    'DB_NAME' => 'u212736227_apotek',
     'DB_PORT' => 3306,
     // Application/server timezone (PHP)
     'TIMEZONE' => 'Asia/Jakarta',
