@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Peringatan Kadaluarsa</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./styles.css?v=1">
+  <link rel="stylesheet" href="./admin.css?v=2">
+</head>
+
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" data-include="sidebar"></aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar" data-include="header"></div>
+
+    <div class="content">
+      <h2 class="page-title">Peringatan Kadaluarsa</h2>
+
+      <div class="card">
+        <h3>Daftar Obat Hampir / Sudah Kadaluarsa</h3>
+
+        <div class="table-tools">
+          <div class="search">
+            <input placeholder="Filter..." oninput="filterRows(this.value)">
+          </div>
+          <div class="row" style="gap:8px;align-items:center">
+            <label>
+              Batas Hari
+              <select id="limitHari">
+                <option value="7">7</option>
+                <option value="14">14</option>
+                <option value="30" selected>30</option>
+                <option value="60">60</option>
+              </select>
+            </label>
+            <button class="btn btn-sm" onclick="loadExpired()">Refresh</button>
+          </div>
+        </div>
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Kode</th>
+              <th>Nama Obat</th>
+              <th>Batch</th>
+              <th>Tgl Expired</th>
+              <th>Sisa Hari</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="./app.js?v=2"></script>
+<script src="./include.js?v=1"></script>
+
+<script>
+  // Aktifkan menu sidebar
+  window.SIDEBAR_ACTIVE = 'expired';
+
+  // Proteksi login
+  (async function(){
+    const r = await fetchJSON(api('/api/me'));
+    if(!r.data || !r.data.user){
+      location.href='./login.html';
+    }
+  })();
+
+  async function loadExpired(){
+    const hari = document.getElementById('limitHari').value || 30;
+    const { data } = await fetchJSON(api(`/api/expired?days=${hari}`));
+
+    const tbody = document.getElementById('rows');
+    tbody.innerHTML = '';
+
+    (data || []).forEach(r=>{
+      let status = '';
+      let cls = '';
+
+      if(r.sisa_hari < 0){
+        status = 'KADALUARSA';
+        cls = 'danger';
+      } else if(r.sisa_hari <= hari){
+        status = 'HAMPIR KADALUARSA';
+        cls = 'warning';
+      } else {
+        status = 'AMAN';
+        cls = '';
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+      <td>${r.obat_kode}</td>
+      <td>${r.nama}</td>
+      <td>${r.batch_no}</td>
+      <td>${r.expired_date}</td>
+      <td>${r.sisa_hari}</td>
+      <td><span class="pill ${cls}">${status}</span></td>
+    `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filterRows(q){
+    q = (q || '').toLowerCase();
+    document.querySelectorAll('#rows tr').forEach(tr=>{
+      tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
+
+  loadExpired();
+</script>
+</body>
+</html>
