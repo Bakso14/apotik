@@ -793,4 +793,27 @@ if (preg_match('#^/api/penjualan/(\d+)$#', $uri, $m)) {
     }
 }
 
+if ($uri === '/api/expired' && $method === 'GET') {
+
+    // default 30 hari
+    $days = isset($_GET['days']) ? (int)$_GET['days'] : 30;
+    $days = max(1, min(365, $days)); // safety
+
+    $sql = "
+        SELECT 
+            a.obat_kode,
+            a.batch_no,
+            b.nama,
+            a.expired_date,
+            DATEDIFF(a.expired_date, CURDATE()) AS sisa_hari
+        FROM pembelian_item a
+        JOIN m_obat b ON a.obat_kode = b.kode
+        WHERE a.expired_date <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
+        ORDER BY a.expired_date ASC
+    ";
+
+    $rows = Database::select($sql, 'i', [$days]);
+    Response::json($rows);
+}
+
 Response::json(['error' => 'Route not found', 'route' => $uri], 404);

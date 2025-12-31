@@ -113,6 +113,7 @@ function faLoaded(){
     return document.fonts.check('1em "Font Awesome 6 Free"');
   }catch(e){ return false; }
 }
+/*
 function applyIconFallbacks(scope){
   // try a short delay to give link time to attach
   const run = () => {
@@ -132,3 +133,4 @@ function applyIconFallbacks(scope){
   run();
   setTimeout(run, 1200);
 }
+*/
