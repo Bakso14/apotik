@@ -210,7 +210,7 @@ if (preg_match('#^/api/obat/([A-Za-z0-9_-]+)$#', $uri, $m)) {
     }
     if ($method === 'DELETE') {
         Database::execute('DELETE FROM m_obat WHERE kode=?', 's', [$kode]);
-        //Audit::log(null, 'DELETE', 'm_obat', (string)$kode, []);
+        Audit::log(null, 'DELETE', 'm_obat', (string)$kode, []);
         Response::json(['message' => 'Deleted']);
     }
 }
