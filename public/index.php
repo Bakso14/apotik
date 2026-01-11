@@ -134,7 +134,7 @@ if ($uri === '/api/obat' && $method === 'GET') {
     $offset = ($page - 1) * $limit;
     if ($q !== '') {
         $like = '%'.$q.'%';
-        $rows = Database::select('SELECT kode,nama,harga,golongan,stok,expired_date FROM m_obat WHERE kode LIKE ? OR nama LIKE ? ORDER BY nama LIMIT ? OFFSET ?','ssii',[ $like, $like, $limit, $offset ]);
+        $rows = Database::select('SELECT kode,nama,produsen,harga,golongan,stok,expired_date FROM m_obat WHERE kode LIKE ? OR nama LIKE ? ORDER BY nama LIMIT ? OFFSET ?','ssii',[ $like, $like, $limit, $offset ]);
         Response::json($rows);
     }
     $rows = Database::select('SELECT * FROM m_obat ORDER BY nama LIMIT ? OFFSET ?','ii',[ $limit, $offset ]);
