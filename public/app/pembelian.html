@@ -185,24 +185,37 @@
 		// Load obat list for datalist
 		const obatCache = { list: [], byKode: {}, byNama: {} };
 		async function loadObat(){
-			try{
-				const {data} = await fetchJSON(api('/api/obat?limit=200&page=1'));
-				const list = Array.isArray(data)?data:[];
-				obatCache.list = list;
-				obatCache.byKode = {};
-				obatCache.byNama = {};
-				const dl = document.getElementById('obatList');
-				dl.innerHTML = '';
-				list.forEach(o=>{
-					if(!o || !o.kode) return;
-					obatCache.byKode[(o.kode+'').toUpperCase()] = o;
-					if (o.nama) obatCache.byNama[(o.nama+'').toLowerCase()] = o;
-					const opt = document.createElement('option');
-					opt.value = o.kode;
-					opt.textContent = `${o.kode} - ${o.nama||''}`.trim();
-					dl.appendChild(opt);
+			const dl = document.getElementById('obatList');
+			dl.innerHTML = '';
+			obatCache.list = [];
+			obatCache.byKode = {};
+			obatCache.byNama = {};
+
+			let page = 1;
+			const limit = 200;
+
+			while (true) {
+				const {data} = await fetchJSON(api(`/api/obat?limit=${limit}&page=${page}`));
+				if (!Array.isArray(data) || data.length === 0) break;
+
+				data.forEach(o => {
+				if (!o || !o.kode) return;
+
+				obatCache.list.push(o);
+				obatCache.byKode[o.kode.toUpperCase()] = o;
+				if (o.nama) obatCache.byNama[o.nama.toLowerCase()] = o;
+
+				const opt = document.createElement('option');
+				opt.value = o.kode;
+				opt.textContent = `${o.kode} - ${o.nama || ''}`.trim();
+				dl.appendChild(opt);
 				});
-			}catch(e){ /* ignore */ }
+
+				if (data.length < limit) break;
+				page++;
+			}
+
+			console.log('Total obat di autocomplete:', obatCache.list.length);
 		}
 		document.getElementById('refreshObat').addEventListener('click', loadObat);
 		loadObat();

@@ -17,8 +17,9 @@
       <div class="card">
         <div class="row" style="gap:8px; align-items:center; flex-wrap:wrap">
           <label>Obat
-            <input id="obat" placeholder="Masukkan Kode Obat" />
+            <input id="obat" list="obatList" placeholder="Ketik kode atau nama obat">
           </label>
+          <datalist id="obatList"></datalist>
           <button class="btn" id="load">Tampilkan</button>
           <button class="btn" id="print">Cetak</button>
         </div>
@@ -41,14 +42,53 @@
 window.SIDEBAR_ACTIVE = 'stok-kartu';
 (async function(){ const r = await fetchJSON(api('/api/me')); if(!r.data || !r.data.user){ location.href='./login.html'; } })();
 async function load(){
-  const kode = document.getElementById('obat').value.trim(); if(!kode){ alert('Isi Kode Obat'); return; }
-  const {status,data} = await fetchJSON(api('/api/stok-kartu?obat_kode='+encodeURIComponent(kode)));
-  if(status>=400){ alert((data&&data.error)||'Gagal'); return; }
-  document.getElementById('head').textContent = `${data.obat.kode} - ${data.obat.nama} | Stok: ${data.obat.stok}`;
-  const tb = document.getElementById('rows'); tb.innerHTML='';
+  let input = document.getElementById('obat').value.trim();
+  if(!input){ alert('Isi Kode Obat'); return; }
+
+  // Jika pilih "KODE - NAMA"
+  if(input.includes(' - ')){
+    input = input.split(' - ')[0].trim();
+  }
+
+  let kode = input;
+
+  // Jika bukan kode, coba cari via nama
+  if(!obatCache.byKode[kode.toUpperCase()]){
+    const byNama = obatCache.byNama[input.toLowerCase()];
+    if(byNama && byNama.kode){
+      kode = byNama.kode;
+    }
+  }
+
+  // Validasi akhir
+  if(!obatCache.byKode[kode.toUpperCase()]){
+    alert('Obat tidak valid. Pilih dari daftar.');
+    return;
+  }
+
+  const {status,data} = await fetchJSON(
+    api('/api/stok-kartu?obat_kode='+encodeURIComponent(kode))
+  );
+
+  if(status>=400){
+    alert((data&&data.error)||'Gagal');
+    return;
+  }
+
+  document.getElementById('head').textContent =
+    `${data.obat.kode} - ${data.obat.nama} | Stok: ${data.obat.stok}`;
+
+  const tb = document.getElementById('rows');
+  tb.innerHTML='';
   (data.rows||[]).forEach(r=>{
     const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${r.tgl||''}</td><td>${r.ref_type||''}#${r.ref_id||''}</td><td>${r.qty_in||0}</td><td>${r.qty_out||0}</td><td>${r.saldo||0}</td><td>${r.keterangan||''}</td>`;
+    tr.innerHTML =
+      `<td>${r.tgl||''}</td>
+       <td>${r.ref_type||''}#${r.ref_id||''}</td>
+       <td>${r.qty_in||0}</td>
+       <td>${r.qty_out||0}</td>
+       <td>${r.saldo||0}</td>
+       <td>${r.keterangan||''}</td>`;
     tb.appendChild(tr);
   });
 }
@@ -56,5 +96,43 @@ async function load(){
 document.getElementById('load').onclick = load;
 document.getElementById('print').onclick = ()=>{ window.print(); };
 </script>
+
+<script>
+const obatCache = { list: [], byKode: {}, byNama: {} };
+
+async function loadObatList(){
+  const dl = document.getElementById('obatList');
+  dl.innerHTML = '';
+  obatCache.list = [];
+  obatCache.byKode = {};
+  obatCache.byNama = {};
+
+  let page = 1;
+  const limit = 200;
+
+  while(true){
+    const {data} = await fetchJSON(api(`/api/obat?limit=${limit}&page=${page}`));
+    if(!Array.isArray(data) || data.length === 0) break;
+
+    data.forEach(o=>{
+      if(!o || !o.kode) return;
+      obatCache.list.push(o);
+      obatCache.byKode[o.kode.toUpperCase()] = o;
+      if(o.nama) obatCache.byNama[o.nama.toLowerCase()] = o;
+
+      const opt = document.createElement('option');
+      opt.value = o.kode;
+      opt.textContent = `${o.kode} - ${o.nama || ''}`.trim();
+      dl.appendChild(opt);
+    });
+
+    if(data.length < limit) break;
+    page++;
+  }
+}
+
+loadObatList();
+</script>
+
 </body>
 </html>

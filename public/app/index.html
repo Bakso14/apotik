@@ -17,7 +17,7 @@
       <div class="topbar" data-include="header"></div>
       <div class="content">
         <div class="card" style="margin-bottom:12px">
-          <div class="search"><input placeholder="Cari obat..." oninput="filterRows(this.value)"/></div>
+          <div class="search"><input placeholder="Cari obat..." oninput="keywordObat=this.value; pageObat=1; loadObat()"/></div>
         </div>
         <h2 class="page-title">Obat</h2>
         <div class="cards cards-2">
@@ -85,31 +85,40 @@
   // Set default expired date to today for convenience if empty
   (function(){ const f=document.getElementById('fObat'); if(!f) return; const d=f.querySelector('input[name=expired_date]'); if(d && !d.value){ d.value = new Date().toISOString().slice(0,10); } })();
     let editingKode = null;
-
+    let keywordObat = '';
     let pageObat=1;
     async function loadObat(){
-      const lim = parseInt(document.getElementById('limitObat').value,10)||20;
-      const {data} = await fetchJSON(api(`/api/obat?limit=${lim}&page=${pageObat}`));
+      const lim = parseInt(document.getElementById('limitObat').value,10) || 20;
+
+      const url = `/api/obat?limit=${lim}&page=${pageObat}&q=${encodeURIComponent(keywordObat)}`;
+      const {data} = await fetchJSON(api(url));
+
       const tbody = document.getElementById('rows');
       tbody.innerHTML = '';
-      (data||[]).forEach(o => {
+
+      (data || []).forEach(o => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><span class=\"pill\">${o.kode}</span></td>`+
-          `<td>${o.nama||''}</td>`+
-          `<td>${o.produsen||''}</td>`+
-          `<td>Rp ${fmtIDR(o.harga)}</td>`+
-          `<td>${o.stok}</td>`+
-          `<td>${o.expired_date||''}</td>`+
-          `<td><div class=\"row\" style=\"gap:6px;\">`+
-            `<button class=\"btn btn-sm\" data-act=\"edit\">Edit</button>`+
-            `<button class=\"btn btn-sm\" data-act=\"del\">Hapus</button>`+
-          `</div></td>`;
+        tr.innerHTML = `
+          <td><span class="pill">${o.kode}</span></td>
+          <td>${o.nama || ''}</td>
+          <td>${o.produsen || ''}</td>
+          <td>Rp ${fmtIDR(o.harga)}</td>
+          <td>${o.stok}</td>
+          <td>${o.expired_date || ''}</td>
+          <td>
+            <div class="row" style="gap:6px;">
+              <button class="btn btn-sm" data-act="edit">Edit</button>
+              <button class="btn btn-sm" data-act="del">Hapus</button>
+            </div>
+          </td>`;
         tr.querySelector('[data-act=edit]').onclick = () => startEdit(o);
         tr.querySelector('[data-act=del]').onclick = () => deleteObat(o.kode);
         tbody.appendChild(tr);
       });
+
       renderPager();
     }
+
     function renderPager(){
       const p=document.getElementById('pagerObat');
       p.innerHTML='';
