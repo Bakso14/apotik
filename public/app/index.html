@@ -31,7 +31,7 @@
             </div>
             <table class="table">
               <thead>
-                <tr><th>Kode</th><th>Nama</th><th>Golongan</th><th>Harga</th><th>Stok</th><th>Expired</th><th>Aksi</th></tr>
+                <tr><th>Kode</th><th>Nama</th><th>Lokasi Rak</th><th>Harga</th><th>Stok</th><th>Expired</th><th>Aksi</th></tr>
               </thead>
               <tbody id="rows"></tbody>
             </table>
@@ -42,12 +42,20 @@
               <div style="display:grid;gap:10px;grid-template-columns:1fr 1fr;">
                 <div><label>Kode</label><input id="inKode" name="kode" maxlength="50" placeholder="(otomatis jika kosong)"></div>
                 <div><label>Nama</label><input name="nama" required maxlength="255"></div>
-                <div><label>Produsen</label><input name="produsen" maxlength="255"></div>
+                <div><label>Lokasi Rak</label>
+                  <select name="produsen" required>
+                    <option>Depan</option>
+                    <option>Kiri</option>
+                    <option>Belakang</option>
+                    <option>Besi</option>
+                  </select>
+                </div>
                 <div><label>Harga</label><input name="harga" type="number" step="0.01" min="0" required></div>
                 <div><label>Stok</label><input name="stok" type="number" min="0" required></div>
                 <div><label>Expired</label><input name="expired_date" type="date" required></div>
                 <div><label>Golongan</label>
                   <select name="golongan" required>
+                    <option>NONE</option>
                     <option>OTC</option>
                     <option>OBT</option>
                     <option>OK</option>
@@ -88,7 +96,7 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `<td><span class=\"pill\">${o.kode}</span></td>`+
           `<td>${o.nama||''}</td>`+
-          `<td>${o.golongan||''}</td>`+
+          `<td>${o.produsen||''}</td>`+
           `<td>Rp ${fmtIDR(o.harga)}</td>`+
           `<td>${o.stok}</td>`+
           `<td>${o.expired_date||''}</td>`+
@@ -133,7 +141,7 @@
       f.harga.value = o.harga||0;
       f.stok.value = o.stok||0;
       f.expired_date.value = o.expired_date||'';
-      f.golongan.value = o.golongan||'OTC';
+      f.golongan.value = o.golongan||'NONE';
       f.scrollIntoView({behavior:'smooth', block:'start'});
     }
 

@@ -150,7 +150,7 @@ if ($uri === '/api/obat' && $method === 'POST') {
         'harga' => 'required|numeric|min:0',
         'stok' => 'required|integer|min:0',
         'expired_date' => 'nullable|date',
-        'golongan' => 'required|in:OTC,OBT,OK,Psikotropika,Narkotika'
+        'golongan' => 'required|in:NONE,OTC,OBT,OK,Psikotropika,Narkotika'
     ];
     $err = Validator::make($input, $rules);
     if ($err) Response::json(['errors' => $err], 422);
@@ -697,7 +697,7 @@ if (preg_match('#^/api/hutang-supplier/(\d+)/pay$#', $uri, $m) && $method === 'P
 // Penjualan (MVP) with safety checks
 if ($uri === '/api/penjualan' && $method === 'POST') {
     $in = json_decode(file_get_contents('php://input'), true) ?: [];
-    $rules = [ 'no_nota'=>'nullable|max:100','tgl'=>'nullable','jenis'=>'required|in:OTC,Resep,Racik','pelanggan_kode'=>'nullable','dokter_sip'=>'nullable','items'=>'required' ];
+    $rules = [ 'no_nota'=>'nullable|max:100','tgl'=>'nullable','jenis'=>'required|in:NONE,OTC,Resep,Racik','pelanggan_kode'=>'nullable','dokter_sip'=>'nullable','items'=>'required' ];
     $err = Validator::make($in,$rules); if($err) Response::json(['errors'=>$err],422);
     $items = is_array($in['items']??null)?$in['items']:null; if(!$items || !count($items)) Response::json(['errors'=>['items'=>['Minimal 1 item']]],422);
     $jenis = $in['jenis'];
