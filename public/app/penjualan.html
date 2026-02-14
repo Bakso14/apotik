@@ -481,7 +481,7 @@
           sugg.style.display='block';
           return;
         }
-        sugg.innerHTML = list.map(o => `<div class="sugg-item" data-k="${o.kode}" data-n="${o.nama}" data-h="${o.harga}" data-s="${o.stok}"><div><div class="title">${o.nama||'-'}</div><div class="muted">${o.kode} · Stok ${o.stok??'-'}</div></div><div class="price">Rp ${fmt(o.harga)}</div></div>`).join('');
+        sugg.innerHTML = list.map(o => `<div class="sugg-item" data-k="${o.kode}" data-n="${o.nama}" data-h="${o.harga}" data-s="${o.stok}"><div><div class="title">${o.nama||'-'}</div><div class="muted">${o.produsen} · Stok ${o.stok??'-'}</div></div><div class="price">Rp ${fmt(o.harga)}</div></div>`).join('');
         Array.from(sugg.children).forEach(el => {
           el.onclick = () => {
             addToCart({ kode:el.dataset.k, nama:el.dataset.n, harga:+el.dataset.h, stok:+el.dataset.s });
